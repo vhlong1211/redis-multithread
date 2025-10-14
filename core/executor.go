@@ -168,6 +168,22 @@ func ExecuteAndResponse(cmd *Command, connFd int) error {
 		res = cmdSMEMBERS(cmd.Args)
 	case "SISMEMBER":
 		res = cmdSISMEMBER(cmd.Args)
+	// Count-Min Sketch
+	case "CMS.INITBYDIM":
+		res = cmdCMSINITBYDIM(cmd.Args)
+	case "CMS.INITBYPROB":
+		res = cmdCMSINITBYPROB(cmd.Args)
+	case "CMS.INCRBY":
+		res = cmdCMSINCRBY(cmd.Args)
+	case "CMS.QUERY":
+		res = cmdCMSQUERY(cmd.Args)
+	// Bloom filter
+	case "BF.RESERVE":
+		res = cmdBFRESERVE(cmd.Args)
+	case "BF.MADD":
+		res = cmdBFMADD(cmd.Args)
+	case "BF.EXISTS":
+		res = cmdBFEXISTS(cmd.Args)
 	default:
 		res = []byte(fmt.Sprintf("-CMD NOT FOUND\r\n"))
 	}
