@@ -1,9 +1,14 @@
 package data_structure
 
-import "time"
+import (
+	"TCPServer/config"
+	"log"
+	"time"
+)
 
 type Obj struct {
-	Value interface{}
+	Value          interface{}
+	LastAccessTime uint32
 }
 
 type Dict struct {
@@ -23,9 +28,14 @@ func (d *Dict) GetExpireDictStore() map[string]uint64 {
 	return d.expiredDictStore
 }
 
+func now() uint32 {
+	return uint32(time.Now().Unix())
+}
+
 func (d *Dict) NewObj(key string, value interface{}, ttlMs int64) *Obj {
 	obj := &Obj{
-		Value: value,
+		Value:          value,
+		LastAccessTime: now(),
 	}
 	if ttlMs > 0 {
 		d.SetExpiry(key, ttlMs)
@@ -61,14 +71,71 @@ func (d *Dict) Get(k string) *Obj {
 	return v
 }
 
+func (d *Dict) evictRandom() {
+	evictCount := int64(config.EvictionRatio * float64(config.MaxKeyNumber))
+	log.Print("trigger random eviction")
+	for k := range d.dictStore {
+		d.Del(k)
+		evictCount--
+		if evictCount == 0 {
+			break
+		}
+	}
+}
+
+func (d *Dict) populateEpool() {
+	remain := config.EpoolLruSampleSize
+	for k := range d.dictStore {
+		ePool.Push(k, d.dictStore[k].LastAccessTime)
+		remain--
+		if remain == 0 {
+			break
+		}
+	}
+	log.Println("EPool:")
+	for _, item := range ePool.pool {
+		log.Println(item.key, item.lastAccessTime)
+	}
+}
+
+func (d *Dict) evictLru() {
+	d.populateEpool()
+	evictCount := int64(config.EvictionRatio * float64(config.MaxKeyNumber))
+	log.Print("trigger LRU eviction")
+	for i := 0; i < int(evictCount) && len(ePool.pool) > 0; i++ {
+		item := ePool.Pop()
+		if item != nil {
+			d.Del(item.key)
+		}
+	}
+}
+
+func (d *Dict) evict() {
+	switch config.EvictionPolicy {
+	case "allkeys-random":
+		d.evictRandom()
+	case "allkeys-lru":
+		d.evictLru()
+	}
+}
+
 func (d *Dict) Set(k string, obj *Obj) {
+	if len(d.dictStore) == config.MaxKeyNumber {
+		d.evict()
+	}
+	v := d.dictStore[k]
+	if v == nil {
+		HashKeySpaceStat.Key++
+	}
 	d.dictStore[k] = obj
 }
 
 func (d *Dict) Del(k string) bool {
+	log.Printf("Delete key %s", k)
 	if _, exist := d.dictStore[k]; exist {
 		delete(d.dictStore, k)
 		delete(d.expiredDictStore, k)
+		HashKeySpaceStat.Key--
 		return true
 	}
 	return false

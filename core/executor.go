@@ -2,6 +2,8 @@ package core
 
 import (
 	"TCPServer/constant"
+	"TCPServer/data_structure"
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -85,6 +87,14 @@ func cmdTTL(args []string) []byte {
 	return Encode(int64(remainMs/1000), false)
 }
 
+func cmdINFO(args []string) []byte {
+	var info []byte
+	buf := bytes.NewBuffer(info)
+	buf.WriteString("# Keyspace\r\n")
+	buf.WriteString(fmt.Sprintf("db0:keys=%d,expires=0,avg_ttl=0\r\n", data_structure.HashKeySpaceStat.Key))
+	return Encode(buf.String(), false)
+}
+
 func cmdEXPIRE(args []string) []byte {
 	if len(args) != 2 {
 		return Encode(errors.New("(error) ERR wrong number of arguments for 'EXPIRE' command"), false)
@@ -142,6 +152,8 @@ func ExecuteAndResponse(cmd *Command, connFd int) error {
 	switch cmd.Cmd {
 	case "PING":
 		res = cmdPING(cmd.Args)
+	case "INFO":
+		res = cmdINFO(cmd.Args)
 	case "SET":
 		res = cmdSET(cmd.Args)
 	case "GET":
