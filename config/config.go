@@ -11,3 +11,5 @@ var EvictionPolicy string = "allkeys-random"
 
 var EpoolMaxSize = 16
 var EpoolLruSampleSize = 5
+
+var ListenerNumber int = 2
